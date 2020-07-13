@@ -1,0 +1,237 @@
+package apis
+
+import (
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/asaskevich/govalidator"
+	"github.com/emicklei/go-restful"
+	restfulspec "github.com/emicklei/go-restful-openapi"
+	scm "gitlab.ushareit.me/sgt/scmp-common/src/models"
+
+	"{{ .GitLabPath }}/{{ .Project }}/src/models"
+	"{{ .GitLabPath }}/{{ .Project }}/src/pkg"
+)
+
+type {{ .ModelName }}Controller struct {
+	*BaseController
+}
+
+func new{{ .ModelName }}Controller(bc *BaseController) *{{ .ModelName }}Controller {
+	tags := []string{"{{ .Project }}-{{ .LowerName }}"}
+	{{ .SimplyName }}c := &{{ .ModelName }}Controller{bc}
+
+	{{ .SimplyName }}c.ws.Route({{ .SimplyName }}c.ws.POST("/{{ .LowerName }}").
+		To({{ .SimplyName }}c.Create).
+		Reads(models.{{ .ModelName }}{}).
+		Doc("create a {{ .LowerName }}").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Returns(http.StatusOK, "OK", scm.Result{}).
+		Returns(http.StatusBadRequest, "ERROR", scm.Result{}))
+
+	{{ .SimplyName }}c.ws.Route({{ .SimplyName }}c.ws.DELETE("/{{ .LowerName }}/{id}").
+		To({{ .SimplyName }}c.Delete).
+		Doc("delete the specified {{ .LowerName }} by it's id").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param({{ .SimplyName }}c.ws.PathParameter("id", "the id of {{ .LowerName }}").DataType("string").Required(true)).
+		Returns(http.StatusOK, "OK", scm.Result{}).
+		Returns(http.StatusBadRequest, "ERROR", scm.Result{}))
+
+	{{ .SimplyName }}c.ws.Route({{ .SimplyName }}c.ws.PUT("/{{ .LowerName }}/{id}").
+		To({{ .SimplyName }}c.Update).
+		Reads(models.{{ .ModelName }}{}).
+		Doc("update the specified {{ .LowerName }}'s").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param({{ .SimplyName }}c.ws.PathParameter("id", "the id of {{ .LowerName }}").DataType("string").Required(true)).
+		Returns(http.StatusOK, "OK", scm.Result{}).
+		Returns(http.StatusBadRequest, "ERROR", scm.Result{}))
+
+	{{ .SimplyName }}c.ws.Route({{ .SimplyName }}c.ws.GET("/{{ .LowerName }}/{id}").
+		To({{ .SimplyName }}c.Get).
+		Doc("get {{ .LowerName }} by it's id").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param({{ .SimplyName }}c.ws.PathParameter("id", "the id of {{ .LowerName }}").DataType("string").Required(true)).
+		Returns(http.StatusOK, "OK", scm.Result{}).
+		Returns(http.StatusBadRequest, "ERROR", scm.Result{}))
+
+	{{ .SimplyName }}c.ws.Route({{ .SimplyName }}c.ws.GET("/{{ .LowerName }}s/{group}").
+		To({{ .SimplyName }}c.List).
+		Doc("paginate the {{ .LowerName }}s").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param({{ .SimplyName }}c.ws.PathParameter("group", "the group of {{ .LowerName }}").DataType("string").Required(true)).
+		Returns(http.StatusOK, "OK", scm.Result{}).
+		Returns(http.StatusBadRequest, "ERROR", scm.Result{}))
+
+	{{ .SimplyName }}c.ws.Route({{ .SimplyName }}c.ws.GET("/{{ .LowerName }}s/{group}/all").
+		To({{ .SimplyName }}c.All).
+		Doc("obtain all {{ .LowerName }}s").
+		Metadata(restfulspec.KeyOpenAPITags, tags).
+		Param({{ .SimplyName }}c.ws.PathParameter("group", "the group of {{ .LowerName }}").DataType("string").Required(true)).
+		Returns(http.StatusOK, "OK", scm.Result{}).
+		Returns(http.StatusBadRequest, "ERROR", scm.Result{}))
+
+	return {{ .SimplyName }}c
+}
+
+func ({{ .SimplyName }}c *{{ .ModelName }}Controller) Create(req *restful.Request, resp *restful.Response) {
+	uid, gids, _, err := {{ .SimplyName }}c.extract(req)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.AuthFailed, err)
+		return
+	}
+
+	var {{ .LowerName }} models.{{ .ModelName }}
+	if err := req.ReadEntity(&{{ .LowerName }}); err != nil {
+		pkg.WriteResponse(resp, pkg.InvalidParams, err)
+		return
+	}
+	if err := {{ .LowerName }}.Validate(); err != nil {
+		pkg.WriteResponse(resp, pkg.Create{{ .ModelName }}Error, err)
+		return
+	}
+
+	result, err := {{ .SimplyName }}c.bs.{{ .ModelName }}Service.Create({{ .LowerName }})
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.Create{{ .ModelName }}Error, err)
+		return
+	}
+
+	_ = {{ .SimplyName }}c.bs.OperationAuditService.Create(scm.OperationAudit{
+		ShareID:           uid,
+		GroupID:           gids,
+		OperatingType:     scm.OperatingTypeAdd,
+		OperatingResource: scm.OperatingResource{{ .ModelName }},
+		OperatingObject:   {{ .LowerName }}.Name,
+		CreateTime:        time.Now(),
+	})
+
+	_ = resp.WriteEntity(scm.NewResult(1, nil, result))
+}
+
+func ({{ .SimplyName }}c *{{ .ModelName }}Controller) Delete(req *restful.Request, resp *restful.Response) {
+	uid, gids, _, err := {{ .SimplyName }}c.extract(req)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.AuthFailed, err)
+		return
+	}
+
+	{{ .LowerName }}ID, err := strconv.Atoi(req.PathParameter("id"))
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.InvalidParams, err)
+		return
+	}
+
+	{{ .LowerName }}, err := {{ .SimplyName }}c.bs.{{ .ModelName }}Service.Get({{ .LowerName }}ID)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.Get{{ .ModelName }}Error, err)
+		return
+	}
+
+	if err = {{ .SimplyName }}c.bs.{{ .ModelName }}Service.Delete({{ .LowerName }}ID); err != nil {
+		pkg.WriteResponse(resp, pkg.Delete{{ .ModelName }}Error, err)
+		return
+	}
+
+	_ = {{ .SimplyName }}c.bs.OperationAuditService.Create(scm.OperationAudit{
+		ShareID:           uid,
+		GroupID:           gids,
+		OperatingType:     scm.OperatingTypeDelete,
+		OperatingResource: scm.OperatingResource{{ .ModelName }},
+		OperatingObject:   {{ .LowerName }}.Name,
+		CreateTime:        time.Now(),
+	})
+
+	resp.WriteHeader(http.StatusNoContent)
+}
+
+func ({{ .SimplyName }}c *{{ .ModelName }}Controller) Update(req *restful.Request, resp *restful.Response) {
+	uid, gids, _, err := {{ .SimplyName }}c.extract(req)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.AuthFailed, err)
+		return
+	}
+
+	var {{ .LowerName }} models.{{ .ModelName }}
+	if err := req.ReadEntity(&{{ .LowerName }}); err != nil {
+		pkg.WriteResponse(resp, pkg.InvalidParams, err)
+		return
+	}
+	if err := {{ .LowerName }}.Validate(); err != nil {
+		pkg.WriteResponse(resp, pkg.Update{{ .ModelName }}Error, err)
+		return
+	}
+
+	result, err := {{ .SimplyName }}c.bs.{{ .ModelName }}Service.Update({{ .LowerName }})
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.Update{{ .ModelName }}Error, err)
+		return
+	}
+
+	_ = {{ .SimplyName }}c.bs.OperationAuditService.Create(scm.OperationAudit{
+		ShareID:           uid,
+		GroupID:           gids,
+		OperatingType:     scm.OperatingTypeUpdate,
+		OperatingResource: scm.OperatingResource{{ .ModelName }},
+		OperatingObject:   {{ .LowerName }}.Name,
+		CreateTime:        time.Now(),
+	})
+
+	_ = resp.WriteEntity(scm.NewResult(1, nil, result))
+}
+
+func ({{ .SimplyName }}c *{{ .ModelName }}Controller) Get(req *restful.Request, resp *restful.Response) {
+	{{ .LowerName }}ID, err := strconv.Atoi(req.PathParameter("id"))
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.InvalidParams, err)
+		return
+	}
+
+	{{ .LowerName }}, err := {{ .SimplyName }}c.bs.{{ .ModelName }}Service.Get({{ .LowerName }}ID)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.Get{{ .ModelName }}Error, err)
+		return
+	}
+
+	_ = resp.WriteEntity(scm.NewResult(1, nil, {{ .LowerName }}))
+}
+
+func ({{ .SimplyName }}c *{{ .ModelName }}Controller) Find(req *restful.Request, resp *restful.Response) {
+	group := req.PathParameter("group")
+	if govalidator.IsNull(group) {
+		pkg.WriteResponse(resp, pkg.Find{{ .ModelName }}Error, "the path parameter group must be specified")
+		return
+	}
+    name := req.QueryParameter("name")
+
+	page, ok := req.Attribute("page").(scm.Page)
+	if !ok {
+		pkg.WriteResponse(resp, pkg.Find{{ .ModelName }}Error, "missing attribute parameter page")
+		return
+	}
+
+	count, {{ .LowerName }}s, err := {{ .SimplyName }}c.bs.{{ .ModelName }}Service.Find(, {{ .LowerName }}Name, page)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.Find{{ .ModelName }}Error, err)
+		return
+	}
+
+	_ = resp.WriteEntity(scm.NewResult(count, &page, {{ .LowerName }}s))
+}
+
+func ({{ .SimplyName }}c *{{ .ModelName }}Controller) All(req *restful.Request, resp *restful.Response) {
+	group := req.PathParameter("group")
+	if govalidator.IsNull(group) {
+		pkg.WriteResponse(resp, pkg.GetAll{{ .ModelName }}Error, "missing the path parameter group")
+		return
+	}
+	name := req.QueryParameter("name")
+
+	{{ .LowerName }}s, err := {{ .LowerName }}c.bs.{{ .ModelName }}Service.All(group, name)
+	if err != nil {
+		pkg.WriteResponse(resp, pkg.GetAll{{ .ModelName }}Error, err)
+		return
+	}
+
+	_ = resp.WriteEntity(scm.NewResult(0, nil, {{ .LowerName }}s))
+}

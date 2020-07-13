@@ -1,0 +1,95 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: scmp
+  name: {{ .Project }}-cm
+  namespace: sgt
+data:
+  config.prod.yaml: |-
+    addr: {{ .Port }}
+    env: "prod"
+    app: "{{ .Project }}"
+    debug: false
+    db:
+      host: ""
+      user: ""
+      password: ""
+      dbname: ""
+      log: true
+      maxidleconns: 10
+      maxopenconns: 100
+
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ .Project }}
+  namespace: sgt
+  labels:
+    app: {{ .Project }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Project }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Project }}
+    spec:
+      volumes:
+        - name: config
+          configMap:
+            name: {{ .Project }}-cm
+        -name: log-dir
+          flexVolume:
+            driver: sgt.shareit.com/hostpathperpod
+            options:
+              hostPath: /data/logs
+      containers:
+        - name: {{ .Project }}
+          image: "swr.ap-southeast-3.myhuaweicloud.com/shareit-sgt/{{ .Project }}:v0.0.1"
+          resources:
+            limits:
+              cpu: "0.5"
+              memory: "512Mi"
+            requests:
+              cpu: "0.5"
+              memory: "512Mi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/scmp/
+            - name: log-dir
+              mountPath: /data/logs
+          imagePullPolicy: Always
+          livenessProbe:
+            httpGet:
+              path: /{{ .Prefix }}/api/v1/hi
+              port: {{ .Port }}
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
+          - name: single-request-reopen
+      imagePullSecrets:
+        - name: default-secret
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Project }}
+  name: {{ .Project }}
+  namespace: sgt
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: {{ .Port }}
+  selector:
+    app: {{ .Project }}

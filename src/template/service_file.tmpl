@@ -1,0 +1,114 @@
+package service
+
+import (
+	"time"
+
+  scm "gitlab.ushareit.me/sgt/scmp-common/src/models"
+	"github.com/jinzhu/gorm"
+
+	"{{ .GitLabPath }}/{{ .Project }}/src/config"
+	"{{ .GitLabPath }}/{{ .Project }}/src/models"
+	"{{ .GitLabPath }}/{{ .Project }}/src/pkg"
+)
+
+type {{ .LowerName }}Service struct {
+	db *gorm.DB
+}
+
+func new{{ .ModelName }}Service(db *gorm.DB) *{{ .LowerName }}Service {
+	return &{{ .LowerName }}Service{db}
+}
+
+func ({{ .SimplyName }}s *{{ .LowerName }}Service) Create({{ .LowerName }} models.{{ .ModelName }}) (*models.{{ .ModelName }}, error) {
+	{{ .LowerName }}.CreateTime = time.Now()
+	{{ .LowerName }}.UpdateTime = time.Now()
+
+	if err := {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).
+		Create(&{{ .LowerName }}).Error; err != nil {
+		return &{{ .LowerName }}, err
+	}
+
+	return &{{ .LowerName }}, nil
+}
+
+func ({{ .SimplyName }}s *{{ .LowerName }}Service) Delete({{ .LowerName }}ID int) error {
+	return {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).Where("id = ?", {{ .LowerName }}ID).Delete(&models.{{ .ModelName }}{}).Error
+}
+
+func ({{ .SimplyName }}s *{{ .LowerName }}Service) Update({{ .LowerName }} models.{{ .ModelName }}) (*models.{{ .ModelName }}, error) {
+	{{ .LowerName }}.UpdateTime = time.Now()
+
+	if err := {{ .SimplyName }}s.db.Model(&{{ .LowerName }}).Update(map[string]interface{}{
+		"name":         {{ .LowerName }}.Name,
+		"description":  {{ .LowerName }}.Description,
+		"is_deleted":   {{ .LowerName }}.IsDeleted,
+		"update_time":  {{ .LowerName }}.UpdateTime,
+	}).Error; err != nil {
+		return &{{ .LowerName }}, err
+	}
+
+	return &{{ .LowerName }}, nil
+}
+
+func ({{ .SimplyName }}s *{{ .LowerName }}Service) Get({{ .LowerName }}ID int) (models.{{ .ModelName }}, error) {
+	var {{ .LowerName }} models.{{ .ModelName }}
+
+	if err := {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).
+		Where("id = ?", {{ .LowerName }}ID).
+		First(&{{ .LowerName }}).Error; err != nil {
+		return {{ .LowerName }}, err
+	}
+
+	return {{ .LowerName }}, nil
+}
+
+func ({{ .SimplyName }}s *{{ .LowerName }}Service) Find(group string, name string, page scm.Page) (int64, []models.{{ .ModelName }}, error) {
+	var {{ .LowerName }}s []models.{{ .ModelName }}
+	var count int64
+
+	if govalidator.IsNull(name) {
+		if err := {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).
+			Where("labels->'$.group' = ?", group).
+			Count(&count).
+			Offset(page.Offset).
+			Limit(page.PageSize).
+			Order("update_time DESC").
+			Find(&{{ .LowerName }}s).Error; err != nil {
+			return count, {{ .LowerName }}s, err
+		}
+	} else {
+		if err := {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).
+			Where("labels->'$.group' = ? AND name LIKE ?", group, "%"+name+"%").
+			Count(&count).
+			Offset(page.Offset).
+			Limit(page.PageSize).
+			Order("update_time DESC").
+			Find(&{{ .LowerName }}s).Error; err != nil {
+			return count, {{ .LowerName }}s, err
+		}
+	}
+
+	return count, {{ .LowerName }}s, nil
+}
+
+func ({{ .SimplyName }}s *{{ .LowerName }}Service) All(group string, name string) ([]models.{{ .ModelName }}, error) {
+	var {{ .LowerName }}s []models.{{ .ModelName }}
+
+	if govalidator.IsNull(name) {
+		if err := {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).
+			Where("labels->'$.group' = ?", group).
+			Order("update_time DESC").
+			Find(&{{ .LowerName }}s).Error; err != nil {
+			return {{ .LowerName }}s, err
+		}
+	} else {
+		if err := {{ .SimplyName }}s.db.Model(&models.{{ .ModelName }}{}).
+			Where("labels->'$.group' = ? AND name LIKE ?", group, "%"+name+"%").
+			Order("update_time DESC").
+			Find(&{{ .LowerName }}s).Error; err != nil {
+			return {{ .LowerName }}s, err
+		}
+	}
+
+	return {{ .LowerName }}s, nil
+}

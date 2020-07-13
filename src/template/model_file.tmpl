@@ -1,0 +1,49 @@
+package models
+
+import (
+	"encoding/json"
+	"errors"
+	"time"
+
+	"github.com/asaskevich/govalidator"
+	scp "gitlab.ushareit.me/sgt/scmp-common/pkg"
+	scm "gitlab.ushareit.me/sgt/scmp-common/src/models"
+)
+
+type {{ .ModelName }} struct {
+	ID      int64    `json:"id" gorm:"id"`
+	Name    string   `json:"name" gorm:"name"`
+	Creator string   `json:"creator" gorm:"creator"`
+	Labels  scm.JSON `json:"labels" gorm:"labels"`
+
+	Description string    `json:"description" gorm:"description"`
+	IsDeleted   bool      `json:"-" gorm:"is_deleted"`
+	CreateTime  time.Time `json:"create_time" gorm:"create_time"`
+	UpdateTime  time.Time `json:"update_time" gorm:"update_time"`
+}
+
+func ({{ .SimplyName }} *{{ .ModelName }}) TableName() string {
+	return "sgt_{{ .Project }}_{{ .LowerName }}"
+}
+
+func ({{ .SimplyName }} *{{ .ModelName }}) String() string {
+	if dataInBytes, err := json.Marshal({{ .SimplyName }}); err == nil {
+		return string(dataInBytes)
+	}
+
+	return ""
+}
+
+func ({{ .SimplyName }} *{{ .ModelName }}) Validate() error {
+	if govalidator.IsNull({{ .SimplyName }}.Name) {
+		return errors.New("the name of {{ .LowerName }} must be specified")
+	}
+
+	if govalidator.IsNull({{ .SimplyName }}.Creator) {
+		return errors.New("the creator of {{ .LowerName }} must be specified")
+	}
+
+	// 验证标签
+
+	return nil
+}
