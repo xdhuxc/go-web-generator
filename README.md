@@ -54,9 +54,11 @@
 
 ```
 
-功能点：
-* 生成一个完整的，可运行的工程，包含 swagger，sql，deployment，makeFile，.dockerIgnore，.gitIgnore等文件
-* 可以单独生成某个数据模型的某个或若干
+功能：
+* 生成一个完整的，可运行的工程，包含 swagger，sql，deployment，makeFile，.dockerIgnore，.gitIgnore等文件和目录
+* 可以单独生成数据模型和 service，controller 文件
+
+少部分内容需要手工修改
 
 
 ### 运行
@@ -77,4 +79,6 @@ main --dir /x/a --project scmp-cicd --port 8080
 
 kubernetes.yaml 文件中的 `httpGet.path` 需要修改为当前项目的
 
+### 参考资料
 
+cobra 学习资料：https://github.com/cli/cli
